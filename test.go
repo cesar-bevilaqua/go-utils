@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	interval := 500 * time.Millisecond
+	interval := 100 * time.Millisecond
 	filename := "monitoramento.csv"
 
 	// Criar ou abrir o arquivo CSV
@@ -78,7 +78,7 @@ func main() {
 		timestamp := time.Now().Format("2006-01-02 15:04:05")
 
 		// Escrever no CSV
-		writer.Write([]string{
+		overwriteLastLine("monitoramento.csv", []string{
 			timestamp,
 			fmt.Sprintf("%.2f", cpuUsage),
 			fmt.Sprintf("%.2f", ramUsage),
@@ -89,9 +89,39 @@ func main() {
 		})
 
 		writer.Flush() // Escreve imediatamente no disco
-
-		// Print no terminal (opcional)
-		fmt.Printf("[%s] CPU: %.2f%% (média: %.2f, pico: %.2f) | RAM: %.2f%% (média: %.2f, pico: %.2f)\n",
-			timestamp, cpuUsage, avgCPU, maxCPU, ramUsage, avgRAM, maxRAM)
 	}
+}
+
+func overwriteLastLine(filepath string, newLine []string) error {
+	// Abre o arquivo para leitura
+	file, err := os.Open(filepath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return err
+	}
+
+	// Atualiza a última linha
+	if len(records) > 0 {
+		records[len(records)-1] = newLine
+	} else {
+		records = append(records, newLine)
+	}
+
+	// Reescreve o arquivo inteiro
+	fileWrite, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer fileWrite.Close()
+
+	writer := csv.NewWriter(fileWrite)
+	defer writer.Flush()
+
+	return writer.WriteAll(records)
 }
